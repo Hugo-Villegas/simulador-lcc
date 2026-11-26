@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador LCC — Comparación de Alternativas · ENAP Magallanes</title>
+<style>
+  :root{
+    color-scheme: light;
+    --surface-1:   #fcfcfb;
+    --surface-2:   #ffffff;
+    --page:        #f4f6f9;
+    --text-primary:#1b2430;
+    --text-secondary:#44546A;
+    --text-muted:  #767f8c;
+    --gridline:    #e3e6ea;
+    --baseline:    #c7cdd6;
+    --border:      rgba(11,11,11,0.10);
+    --series-A:    #4472C4;  /* ENAP acento azul — Alternativa A */
+    --series-A-wash: rgba(68,114,196,0.12);
+    --series-B:    #ED7D31;  /* ENAP acento naranja — Alternativa B */
+    --series-B-wash: rgba(237,125,49,0.14);
+    --good:        #2f8f3b;
+    --warning:     #b8860b;
+    --critical:    #c0392b;
+    --brand-ink:   #44546A;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --surface-1:   #1a1d22;
+      --surface-2:   #20242b;
+      --page:        #121418;
+      --text-primary:#f3f5f7;
+      --text-secondary:#c3cadb;
+      --text-muted:  #8d96a3;
+      --gridline:    #2c3038;
+      --baseline:    #3a3f48;
+      --border:      rgba(255,255,255,0.12);
+      --series-A:    #6a93d9;
+      --series-A-wash: rgba(106,147,217,0.18);
+      --series-B:    #f0955a;
+      --series-B-wash: rgba(240,149,90,0.20);
+      --good:        #52c060;
+      --warning:     #e0b23a;
+      --critical:    #e1685c;
+    }
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--page); color:var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height:1.5;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 20px 80px;}
+  a{color:var(--series-A);}
+
+  /* ---- header ---- */
+  header.hero{padding:34px 0 18px;}
+  .hero h1{font-size:26px; margin:0 0 6px; color:var(--brand-ink); font-weight:800;}
+  .hero p.sub{margin:0 0 4px; color:var(--text-secondary); font-size:14.5px;}
+  .hero p.meta{margin:10px 0 0; color:var(--text-muted); font-size:12.5px;}
+  .hero p.note{margin:6px 0 0; color:var(--text-muted); font-size:12.5px; font-style:italic;}
+  .gradient-bar{height:4px; border-radius:2px; margin-top:16px;
+    background:linear-gradient(90deg,#5B9BD5,#4472C4,#7030A0,#ED7D31,#C00000);}
+
+  section{margin-top:40px;}
+  h2{font-size:19px; color:var(--brand-ink); margin:0 0 4px; font-weight:750;}
+  h2 .tag{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--text-muted); display:block; margin-bottom:2px;}
+  p.lede{color:var(--text-secondary); font-size:14px; margin:4px 0 18px; max-width:760px;}
+
+  .card{background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:18px 20px;}
+
+  /* ---- stat tiles ---- */
+  .tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px;}
+  .tile{background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:14px 16px;}
+  .tile .label{font-size:12px; color:var(--text-muted); margin-bottom:6px;}
+  .tile .value{font-size:22px; font-weight:750; color:var(--text-primary);}
+  .tile .value.blue{color:var(--series-A);}
+  .tile .value.orange{color:var(--series-B);}
+  .tile .delta{font-size:12px; margin-top:4px; color:var(--text-secondary);}
+  .badge{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700;
+    padding:4px 10px; border-radius:999px; background:rgba(47,143,59,.12); color:var(--good);}
+  .badge.warn{background:rgba(184,134,11,.14); color:var(--warning);}
+
+  /* ---- simulator layout ---- */
+  .sim-grid{display:grid; grid-template-columns: 300px 1fr; gap:22px;}
+  @media (max-width:820px){ .sim-grid{grid-template-columns:1fr;} }
+  .sliders-group{margin-bottom:14px;}
+  .sliders-group h3{font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); margin:0 0 10px;}
+  .slider-row{margin-bottom:14px;}
+  .slider-row .row-top{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;}
+  .slider-row label{font-size:12.5px; color:var(--text-secondary);}
+  .slider-row .val{font-size:12.5px; font-weight:700; color:var(--text-primary); font-variant-numeric: tabular-nums;}
+  .slider-row input[type=range]{width:100%; accent-color:var(--series-A); height:18px;}
+  .slider-row .minmax{display:flex; justify-content:space-between; font-size:10.5px; color:var(--text-muted); margin-top:1px;}
+  details.advanced{margin-top:6px;}
+  details.advanced summary{cursor:pointer; font-size:12.5px; color:var(--series-A); font-weight:600; padding:6px 0;}
+  .reset-btn, .mc-btn{
+    appearance:none; border:1px solid var(--border); background:var(--surface-1); color:var(--text-primary);
+    font-size:12.5px; font-weight:650; padding:8px 14px; border-radius:8px; cursor:pointer; margin-top:6px;
+  }
+  .mc-btn{background:var(--series-A); color:#fff; border-color:var(--series-A);}
+  .mc-btn:hover{opacity:.9;}
+  .reset-btn:hover{background:var(--gridline);}
+
+  .chart-box{margin-bottom:22px;}
+  .chart-box .chart-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;}
+  .chart-box .chart-head h4{font-size:13.5px; margin:0; color:var(--text-primary); font-weight:700;}
+  .legend{display:flex; gap:14px; font-size:12px; color:var(--text-secondary);}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .legend i{width:10px; height:10px; border-radius:3px; display:inline-block;}
+  .legend i.A{background:var(--series-A);} .legend i.B{background:var(--series-B);}
+  svg.chart{width:100%; height:auto; display:block; overflow:visible;}
+  .axis-text{font-size:10.5px; fill:var(--text-muted); font-family:inherit;}
+  .bar-label{font-size:10.5px; fill:var(--text-secondary); font-family:inherit; font-weight:600;}
+  details.tbl summary{cursor:pointer; font-size:11.5px; color:var(--text-muted); margin-top:4px;}
+  table.datatable{width:100%; border-collapse:collapse; font-size:12px; margin-top:8px;}
+  table.datatable th, table.datatable td{text-align:right; padding:5px 8px; border-bottom:1px solid var(--gridline);}
+  table.datatable th:first-child, table.datatable td:first-child{text-align:left;}
+  table.datatable thead th{color:var(--text-muted); font-weight:600; font-size:11px; text-transform:uppercase;}
+
+  #tooltip{
+    position:fixed; pointer-events:none; background:var(--text-primary); color:var(--surface-1);
+    font-size:12px; padding:6px 9px; border-radius:6px; opacity:0; transition:opacity .08s;
+    z-index:50; max-width:240px; line-height:1.35;
+  }
+
+  .mc-stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-top:16px;}
+  .mc-note{font-size:12px; color:var(--text-muted); margin-top:10px;}
+
+  ul.consid{padding-left:20px; margin:0; font-size:13.5px; color:var(--text-secondary);}
+  ul.consid li{margin-bottom:8px;}
+
+  table.fuentes{width:100%; border-collapse:collapse; font-size:12.5px;}
+  table.fuentes th, table.fuentes td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--gridline); vertical-align:top;}
+  table.fuentes thead th{color:var(--text-muted); font-size:11px; text-transform:uppercase; font-weight:650;}
+  table.fuentes td.num{text-align:right; font-variant-numeric: tabular-nums;}
+  .quality-tag{font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px; background:rgba(192,57,43,.12); color:var(--critical); white-space:nowrap;}
+
+  footer{margin-top:50px; padding-top:18px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted);}
+  footer .eq{font-family:ui-monospace, Consolas, monospace; font-size:12px; background:var(--surface-1); padding:2px 6px; border-radius:4px;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="hero">
+  <h1>Simulador de Costo de Ciclo de Vida (LCC)</h1>
+  <p class="sub">Comparación Alternativa A vs. Alternativa B</p>
+  <p class="meta">Hugo Villegas Barría · Ingeniero de Estudios de Mantenimiento · Ingeniería y Planificación del Mantenimiento (IPM) · ENAP Magallanes</p>
+  <p class="note">Modelo ilustrativo para comparar metodológicamente dos alternativas de equipo; los valores de fallas, costos y tiempos de reparación son de ejemplo y deben validarse con datos propios antes de usarse en una decisión de inversión.</p>
+  <div class="gradient-bar"></div>
+</header>
+
+<section id="resumen">
+  <h2><span class="tag">01 · Resumen</span>¿Qué alternativa conviene?</h2>
+  <p class="lede">Indicadores del escenario actual. Muévase a la sección "Simulador" para cambiar los supuestos y ver cómo cambian estos números en vivo.</p>
+  <div class="tiles" id="tiles"></div>
+</section>
+
+<section id="simulador">
+  <h2><span class="tag">02 · Simulador</span>Mueva las variables y vea el efecto</h2>
+  <p class="lede">Los rangos de cada variable son los declarados en la hoja "Supuestos" del modelo Excel (% mínimo / máximo sobre el valor base). Los gráficos se recalculan al instante.</p>
+
+  <div class="sim-grid">
+    <div class="card" id="sliders-panel"></div>
+
+    <div>
+      <div class="card chart-box">
+        <div class="chart-head">
+          <h4>Desglose del costo de ciclo de vida (VP, $)</h4>
+          <div class="legend"><span><i class="A"></i>Alternativa A</span><span><i class="B"></i>Alternativa B</span></div>
+        </div>
+        <svg class="chart" id="barChart" viewBox="0 0 640 300"></svg>
+        <details class="tbl"><summary>Ver tabla</summary><div id="barTable"></div></details>
+      </div>
+
+      <div class="card chart-box">
+        <div class="chart-head">
+          <h4>Valor presente acumulado por año</h4>
+          <div class="legend"><span><i class="A"></i>Alternativa A</span><span><i class="B"></i>Alternativa B</span></div>
+        </div>
+        <svg class="chart" id="lineChart" viewBox="0 0 640 260"></svg>
+        <details class="tbl"><summary>Ver tabla</summary><div id="lineTable"></div></details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="tornado">
+  <h2><span class="tag">03 · Sensibilidad</span>¿Qué variable mueve más la decisión?</h2>
+  <p class="lede">Se mueve una variable a la vez entre su mínimo y máximo (manteniendo las demás en el valor actual del simulador) y se mide cuánto cambia Δ = VP(B) − VP(A). Mientras más larga la barra, más conviene validar ese dato antes de decidir. Se recalcula con los valores que usted deje en el simulador.</p>
+  <div class="card chart-box">
+    <svg class="chart" id="tornadoChart" viewBox="0 0 640 420"></svg>
+    <details class="tbl"><summary>Ver tabla</summary><div id="tornadoTable"></div></details>
+  </div>
+</section>
+
+<section id="montecarlo">
+  <h2><span class="tag">04 · Montecarlo</span>¿Qué tan segura es la decisión frente a la incertidumbre?</h2>
+  <p class="lede">Cada variable se trata como incierta (distribución triangular: mínimo, moda = valor actual del simulador, máximo — los mismos rangos de Supuestos) y se generan 1.000 escenarios aleatorios. Presione el botón para correr la simulación.</p>
+  <div class="card">
+    <button class="mc-btn" id="mcBtn">🎲 Simular 1.000 escenarios</button>
+    <span class="mc-note" id="mcHint">Aún no se ha corrido ninguna simulación con el escenario actual.</span>
+    <svg class="chart" id="mcChart" viewBox="0 0 640 220" style="margin-top:14px;"></svg>
+    <div class="mc-stats" id="mcStats"></div>
+  </div>
+</section>
+
+<section id="consideraciones">
+  <h2><span class="tag">05 · Consideraciones</span>Lo que este simulador no resuelve por usted</h2>
+  <ul class="consid" id="considList"></ul>
+</section>
+
+<section id="fuentes">
+  <h2><span class="tag">06 · Fuentes de los datos</span>De dónde sale cada número</h2>
+  <p class="lede">Columna "Fuente/comentario" copiada tal cual de la hoja Supuestos del Excel. El modelo original declara la <b>calidad del dato como "Sin declarar"</b> en las 14 variables: son estimaciones ilustrativas, no mediciones validadas.</p>
+  <div class="card" style="overflow-x:auto;">
+    <table class="fuentes" id="fuentesTable"></table>
+  </div>
+  <p class="mc-note" style="margin-top:10px;">Nota: el comentario de la tasa de descuento en el Excel original dice "rango 7,2%–10,8%", pero la columna %Mín/%Máx que efectivamente se usó en la hoja Sensibilidad corresponde a ±10% (8,1%–9,9%). Este simulador usa el rango que fue realmente calculado en el Excel (±10%), no el del comentario.</p>
+</section>
+
+<footer>
+  <p><b>Metodología (hoja "Metodología" del Excel):</b> Ecuación 1 — VP = <span class="eq">Σ Cₜ / (1+i)ᵗ</span>, t = 0…n · Ecuación 2 — <span class="eq">CAE = VP × FRC</span>, FRC = <span class="eq">i(1+i)ⁿ / [(1+i)ⁿ−1]</span> · Ecuación 3 — <span class="eq">% fiabilidad = VP(fallas) / VP total</span> · Ecuación 4 (muestreo triangular) — con Fc=(c−a)/(b−a): si u&lt;Fc, x = a+√[u(b−a)(c−a)]; si u≥Fc, x = b−√[(1−u)(b−a)(b−c)].</p>
+  <p>Horizonte n = 15 años (fijo) · Mantenimiento mayor en años 5 y 10 (fijo) · Valor residual = 0% (fijo) · Costo de fallas = fallas/año × TPFS (h/falla) × penalización ($/h).</p>
+  <p>Referencias: IEC 60300-3-3 (2017), <i>Dependability management — Part 3-3: Life cycle costing</i> · Vose, D. (2008), <i>Risk Analysis: A Quantitative Guide</i>, 3rd ed., Wiley · Woodward, D.G. (1997), <i>Life cycle costing — theory, information acquisition and application</i>, IJPM 15(6).</p>
+  <p>Generado a partir del modelo de Costo de Ciclo de Vida (LCC) construido en Excel. Página estática, sin backend — las cifras que usted mueva aquí no modifican el archivo Excel original.</p>
+</footer>
+
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+/* ============================= CONFIG ============================= */
+const N = 15, ANIOS_MAYOR = [5,10], VR_PCT = 0;
+
+const CONFIG = [
+  {key:'tasa',    group:'clave',    label:'Tasa de descuento (i)',               unit:'%',           base:0.09,     pctMin:-0.10, pctMax:0.10, step:0.001, fmt:'pct2',
+    fuente:'Modelo base, celdaC2 — común a A y B'},
+  {key:'fallasA', group:'clave',    label:'Fallas / año — Alternativa A',        unit:'fallas/año',  base:11,       pctMin:-0.30, pctMax:0.50, step:0.1,   fmt:'num1',
+    fuente:'Modelo base, celdaB40'},
+  {key:'fallasB', group:'clave',    label:'Fallas / año — Alternativa B',        unit:'fallas/año',  base:5,        pctMin:-0.30, pctMax:0.50, step:0.1,   fmt:'num1',
+    fuente:'Modelo base, celdaI40'},
+  {key:'tpfsA',   group:'clave',    label:'Tiempo para reparar (TPFS) — A',      unit:'horas/falla', base:36,       pctMin:-0.25, pctMax:0.50, step:0.25,  fmt:'num1',
+    fuente:'Modelo base, celdaB41'},
+  {key:'tpfsB',   group:'clave',    label:'TPFS — Alternativa B',                unit:'horas/falla', base:27,       pctMin:-0.25, pctMax:0.50, step:0.25,  fmt:'num1',
+    fuente:'Modelo base, celdaI41'},
+  {key:'pen',     group:'clave',    label:'Penalización por hora de detención',  unit:'$/hora',      base:20000,    pctMin:-0.10, pctMax:0.10, step:100,   fmt:'clp',
+    fuente:'Modelo base, celdaB42 / I42 — común a A y B'},
+  {key:'adqA',    group:'inversion',label:'Adquisición — Alternativa A',         unit:'$',           base:5200000,  pctMin:-0.05, pctMax:0.15, step:10000, fmt:'clp',
+    fuente:'Modelo base, celdaC5'},
+  {key:'adqB',    group:'inversion',label:'Adquisición — Alternativa B',         unit:'$',           base:12000000, pctMin:-0.05, pctMax:0.15, step:10000, fmt:'clp',
+    fuente:'Modelo base, celdaI5'},
+  {key:'opA',     group:'avanzado', label:'Costo operacional anual — A',         unit:'$/año',       base:75000,    pctMin:-0.10, pctMax:0.20, step:500,   fmt:'clp',
+    fuente:'Modelo base, celdaC12'},
+  {key:'opB',     group:'avanzado', label:'Costo operacional anual — B',         unit:'$/año',       base:75000,    pctMin:-0.10, pctMax:0.20, step:500,   fmt:'clp',
+    fuente:'Modelo base, celdaI12'},
+  {key:'prevA',   group:'avanzado', label:'Mantenimiento preventivo anual — A',  unit:'$/año',       base:20000,    pctMin:-0.10, pctMax:0.20, step:100,   fmt:'clp',
+    fuente:'Modelo base, celdaC13'},
+  {key:'prevB',   group:'avanzado', label:'Mantenimiento preventivo anual — B',  unit:'$/año',       base:43000,    pctMin:-0.10, pctMax:0.20, step:100,   fmt:'clp',
+    fuente:'Modelo base, celdaI13'},
+  {key:'mmayorA', group:'avanzado', label:'Mantenimiento mayor (evento) — A',    unit:'$/evento',    base:370000,   pctMin:-0.10, pctMax:0.30, step:1000,  fmt:'clp',
+    fuente:'Modelo base, celdaC21 — años 5 y 10'},
+  {key:'mmayorB', group:'avanzado', label:'Mantenimiento mayor (evento) — B',    unit:'$/evento',    base:600000,   pctMin:-0.10, pctMax:0.30, step:1000,  fmt:'clp',
+    fuente:'Modelo base, celdaI21 — años 5 y 10'},
+];
+CONFIG.forEach(c=>{ c.min=+(c.base*(1+c.pctMin)).toFixed(6); c.max=+(c.base*(1+c.pctMax)).toFixed(6); });
+
+const GROUP_LABEL = {clave:'Parámetros clave (mayor impacto)', inversion:'Inversión inicial', avanzado:'Costos operativos y de mantención (avanzado)'};
+
+let state = {};
+CONFIG.forEach(c=> state[c.key]=c.base);
+
+/* ============================= FORMATO ============================= */
+function fmtCLP(x){ return '$'+Math.round(x).toLocaleString('es-CL'); }
+function fmtNum(x,d=1){ return x.toLocaleString('es-CL',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function fmtPct(x,d=1){ return (x*100).toLocaleString('es-CL',{minimumFractionDigits:d,maximumFractionDigits:d})+'%'; }
+function fmtByCfg(c,x){
+  if(c.fmt==='clp') return fmtCLP(x);
+  if(c.fmt==='pct2') return fmtPct(x,2);
+  return fmtNum(x,1)+' '+c.unit;
+}
+
+/* ============================= MOTOR LCC ============================= */
+function calcAlt(adq,op,prev,mmayor,fallas,tpfs,pen,i){
+  const fallasCost = fallas*tpfs*pen;
+  const annual = op+prev+fallasCost;
+  const annuity = (1-Math.pow(1+i,-N))/i;
+  let vp = adq + annual*annuity;
+  ANIOS_MAYOR.forEach(t=> vp += mmayor/Math.pow(1+i,t));
+  vp -= (VR_PCT*adq)/Math.pow(1+i,N);
+  return {vp, fallasCost, annual, adq, op, prev, mmayor};
+}
+function scenario(v){
+  const A = calcAlt(v.adqA, v.opA, v.prevA, v.mmayorA, v.fallasA, v.tpfsA, v.pen, v.tasa);
+  const B = calcAlt(v.adqB, v.opB, v.prevB, v.mmayorB, v.fallasB, v.tpfsB, v.pen, v.tasa);
+  const frc = v.tasa*Math.pow(1+v.tasa,N)/(Math.pow(1+v.tasa,N)-1);
+  return {
+    A, B, frc,
+    caeA: A.vp*frc, caeB: B.vp*frc,
+    delta: B.vp-A.vp,
+  };
+}
+function flowsCum(adq,op,prev,mmayor,fallas,tpfs,pen,i){
+  const fallasCost=fallas*tpfs*pen;
+  let cum=[adq]; let s=adq;
+  for(let t=1;t<=N;t++){
+    let nominal=op+prev+fallasCost;
+    if(ANIOS_MAYOR.includes(t)) nominal+=mmayor;
+    s += nominal/Math.pow(1+i,t);
+    cum.push(s);
+  }
+  return cum;
+}
+
+/* ============================= TOOLTIP ============================= */
+const tip = document.getElementById('tooltip');
+function showTip(evt,html){
+  tip.innerHTML = html; tip.style.opacity=1;
+  const x = evt.clientX, y = evt.clientY;
+  tip.style.left = Math.min(x+12, window.innerWidth-250)+'px';
+  tip.style.top = (y+12)+'px';
+}
+function hideTip(){ tip.style.opacity=0; }
+
+/* ============================= SLIDERS UI ============================= */
+function buildSliders(){
+  const panel = document.getElementById('sliders-panel');
+  panel.innerHTML='';
+  const groups = {clave:[], inversion:[], avanzado:[]};
+  CONFIG.forEach(c=> groups[c.group].push(c));
+
+  function rowHTML(c){
+    return `<div class="slider-row" data-key="${c.key}">
+      <div class="row-top"><label>${c.label}</label><span class="val" id="val-${c.key}"></span></div>
+      <input type="range" id="sl-${c.key}" min="${c.min}" max="${c.max}" step="${c.step}" value="${state[c.key]}">
+      <div class="minmax"><span>${fmtByCfg(c,c.min)}</span><span>${fmtByCfg(c,c.max)}</span></div>
+    </div>`;
+  }
+
+  let html = `<div class="sliders-group"><h3>${GROUP_LABEL.clave}</h3>${groups.clave.map(rowHTML).join('')}</div>`;
+  html += `<div class="sliders-group"><h3>${GROUP_LABEL.inversion}</h3>${groups.inversion.map(rowHTML).join('')}</div>`;
+  html += `<details class="advanced"><summary>+ Ajustes avanzados (operación y mantención)</summary><div class="sliders-group">${groups.avanzado.map(rowHTML).join('')}</div></details>`;
+  html += `<button class="reset-btn" id="resetBtn">↺ Restablecer valores base</button>`;
+  panel.innerHTML = html;
+
+  CONFIG.forEach(c=>{
+    const input = document.getElementById('sl-'+c.key);
+    input.addEventListener('input', ()=>{
+      state[c.key] = parseFloat(input.value);
+      syncLabel(c);
+      renderAll();
+    });
+    syncLabel(c);
+  });
+  document.getElementById('resetBtn').addEventListener('click', ()=>{
+    CONFIG.forEach(c=>{ state[c.key]=c.base; document.getElementById('sl-'+c.key).value=c.base; syncLabel(c); });
+    renderAll();
+  });
+}
+function syncLabel(c){ document.getElementById('val-'+c.key).textContent = fmtByCfg(c, state[c.key]); }
+
+/* ============================= STAT TILES ============================= */
+function renderTiles(){
+  const sc = scenario(state);
+  const annuity = (1-Math.pow(1+state.tasa,-N))/state.tasa;
+  const fiabA = state.fallasA*state.tpfsA*state.pen*annuity / sc.A.vp;
+  const fiabB = state.fallasB*state.tpfsB*state.pen*annuity / sc.B.vp;
+  const recomendada = sc.delta<0 ? 'B' : 'A';
+  const ahorro = Math.abs(sc.delta);
+  const pctAhorro = ahorro / Math.max(sc.A.vp, sc.B.vp);
+
+  document.getElementById('tiles').innerHTML = `
+    <div class="tile"><div class="label">VP ciclo de vida — Alt. A</div><div class="value blue">${fmtCLP(sc.A.vp)}</div><div class="delta">CAE ${fmtCLP(sc.caeA)}/año</div></div>
+    <div class="tile"><div class="label">VP ciclo de vida — Alt. B</div><div class="value orange">${fmtCLP(sc.B.vp)}</div><div class="delta">CAE ${fmtCLP(sc.caeB)}/año</div></div>
+    <div class="tile"><div class="label">Δ (B − A)</div><div class="value">${fmtCLP(sc.delta)}</div><div class="delta">${fmtPct(pctAhorro)} del VP mayor</div></div>
+    <div class="tile"><div class="label">% del LCC por fallas</div><div class="value">A ${fmtPct(fiabA)} · B ${fmtPct(fiabB)}</div><div class="delta">Costo de fiabilidad sobre VP total</div></div>
+    <div class="tile"><div class="label">Alternativa recomendada</div><div class="value"><span class="badge">Alternativa ${recomendada}</span></div><div class="delta">Menor VP de ciclo de vida en este escenario</div></div>
+  `;
+}
+
+/* ============================= BAR CHART (desglose VP) ============================= */
+function renderBarChart(){
+  const sc = scenario(state);
+  const cats = [
+    {k:'Adquisición', a:sc.A.adq, b:sc.B.adq},
+    {k:'Operación',   a:sc.A.op * ((1-Math.pow(1+state.tasa,-N))/state.tasa), b:sc.B.op * ((1-Math.pow(1+state.tasa,-N))/state.tasa)},
+    {k:'Preventivo',  a:sc.A.prev * ((1-Math.pow(1+state.tasa,-N))/state.tasa), b:sc.B.prev * ((1-Math.pow(1+state.tasa,-N))/state.tasa)},
+    {k:'Mant. mayor', a:ANIOS_MAYOR.reduce((s,t)=>s+sc.A.mmayor/Math.pow(1+state.tasa,t),0), b:ANIOS_MAYOR.reduce((s,t)=>s+sc.B.mmayor/Math.pow(1+state.tasa,t),0)},
+    {k:'Fallas',      a:sc.A.fallasCost * ((1-Math.pow(1+state.tasa,-N))/state.tasa), b:sc.B.fallasCost * ((1-Math.pow(1+state.tasa,-N))/state.tasa)},
+  ];
+  const W=640,H=300, padL=10, padR=10, padT=10, padB=34;
+  const plotW = W-padL-padR, plotH = H-padT-padB;
+  const maxV = Math.max(...cats.map(c=>Math.max(c.a,c.b)))*1.12;
+  const groupW = plotW/cats.length;
+  const barW = 24, gap=6;
+
+  let svg = '';
+  // gridlines (4 steps)
+  for(let i=0;i<=4;i++){
+    const y = padT + plotH - (plotH*i/4);
+    svg += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="var(--gridline)" stroke-width="1"/>`;
+    svg += `<text class="axis-text" x="${padL}" y="${y-4}">${fmtCLP(maxV*i/4)}</text>`;
+  }
+  cats.forEach((c,i)=>{
+    const cx = padL + groupW*i + groupW/2;
+    const hA = (c.a/maxV)*plotH, hB=(c.b/maxV)*plotH;
+    const xA = cx - barW - gap/2, xB = cx + gap/2;
+    const yA = padT+plotH-hA, yB=padT+plotH-hB;
+    svg += `<rect data-tip="Alternativa A · ${c.k}: ${fmtCLP(c.a)}" class="hit" x="${xA}" y="${yA}" width="${barW}" height="${Math.max(hA,1)}" rx="4" fill="var(--series-A)"/>`;
+    svg += `<rect data-tip="Alternativa B · ${c.k}: ${fmtCLP(c.b)}" class="hit" x="${xB}" y="${yB}" width="${barW}" height="${Math.max(hB,1)}" rx="4" fill="var(--series-B)"/>`;
+    svg += `<text class="axis-text" x="${cx}" y="${H-padB+16}" text-anchor="middle">${c.k}</text>`;
+  });
+  svg += `<line x1="${padL}" y1="${padT+plotH}" x2="${W-padR}" y2="${padT+plotH}" stroke="var(--baseline)" stroke-width="1"/>`;
+  document.getElementById('barChart').innerHTML = svg;
+  attachHit('barChart');
+
+  let tbl = `<table class="datatable"><thead><tr><th>Partida (VP)</th><th>Alt. A</th><th>Alt. B</th></tr></thead><tbody>`;
+  cats.forEach(c=> tbl += `<tr><td>${c.k}</td><td>${fmtCLP(c.a)}</td><td>${fmtCLP(c.b)}</td></tr>`);
+  tbl += `<tr><td><b>Total VP</b></td><td><b>${fmtCLP(sc.A.vp)}</b></td><td><b>${fmtCLP(sc.B.vp)}</b></td></tr>`;
+  tbl += `</tbody></table>`;
+  document.getElementById('barTable').innerHTML = tbl;
+}
+
+/* ============================= LINE CHART (VP acumulado) ============================= */
+function renderLineChart(){
+  const cumA = flowsCum(state.adqA,state.opA,state.prevA,state.mmayorA,state.fallasA,state.tpfsA,state.pen,state.tasa);
+  const cumB = flowsCum(state.adqB,state.opB,state.prevB,state.mmayorB,state.fallasB,state.tpfsB,state.pen,state.tasa);
+  const W=640,H=260, padL=70, padR=16, padT=14, padB=28;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  const maxV = Math.max(...cumA,...cumB)*1.08;
+  const n = cumA.length; // N+1 points
+  const x = i=> padL + plotW*i/(n-1);
+  const y = v=> padT + plotH - (v/maxV)*plotH;
+
+  function pathFor(arr){ return arr.map((v,i)=> (i===0?'M':'L')+x(i).toFixed(1)+','+y(v).toFixed(1)).join(' '); }
+
+  let svg='';
+  for(let i=0;i<=4;i++){
+    const yy = padT+plotH-(plotH*i/4);
+    svg += `<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="var(--gridline)" stroke-width="1"/>`;
+    svg += `<text class="axis-text" x="2" y="${yy+4}">${fmtCLP(maxV*i/4)}</text>`;
+  }
+  [0,5,10,15].forEach(t=>{
+    svg += `<text class="axis-text" x="${x(t)}" y="${H-8}" text-anchor="middle">Año ${t}</text>`;
+  });
+  svg += `<path d="${pathFor(cumA)}" fill="none" stroke="var(--series-A)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  svg += `<path d="${pathFor(cumB)}" fill="none" stroke="var(--series-B)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  cumA.forEach((v,i)=>{ svg += `<circle data-tip="Año ${i} · Alt. A acumulado: ${fmtCLP(v)}" class="hit" cx="${x(i)}" cy="${y(v)}" r="7" fill="var(--series-A)" opacity="0" />`; });
+  cumB.forEach((v,i)=>{ svg += `<circle data-tip="Año ${i} · Alt. B acumulado: ${fmtCLP(v)}" class="hit" cx="${x(i)}" cy="${y(v)}" r="7" fill="var(--series-B)" opacity="0" />`; });
+  svg += `<circle cx="${x(n-1)}" cy="${y(cumA[n-1])}" r="4" fill="var(--surface-2)" stroke="var(--series-A)" stroke-width="2"/>`;
+  svg += `<circle cx="${x(n-1)}" cy="${y(cumB[n-1])}" r="4" fill="var(--surface-2)" stroke="var(--series-B)" stroke-width="2"/>`;
+  document.getElementById('lineChart').innerHTML = svg;
+  attachHit('lineChart');
+
+  let tbl = `<table class="datatable"><thead><tr><th>Año</th><th>Alt. A (VP acum.)</th><th>Alt. B (VP acum.)</th></tr></thead><tbody>`;
+  [0,1,2,3,4,5,10,15].filter(t=>t<n).forEach(t=> tbl += `<tr><td>${t}</td><td>${fmtCLP(cumA[t])}</td><td>${fmtCLP(cumB[t])}</td></tr>`);
+  tbl += `</tbody></table>`;
+  document.getElementById('lineTable').innerHTML = tbl;
+}
+
+/* ============================= TORNADO ============================= */
+function renderTornado(){
+  const base = scenario(state).delta;
+  const rows = CONFIG.map(c=>{
+    const vMin = Object.assign({},state,{[c.key]:c.min});
+    const vMax = Object.assign({},state,{[c.key]:c.max});
+    const dMin = scenario(vMin).delta, dMax = scenario(vMax).delta;
+    return {label:c.label, lo:Math.min(dMin,dMax), hi:Math.max(dMin,dMax), range:Math.abs(dMax-dMin)};
+  }).sort((a,b)=> b.range-a.range);
+
+  const W=640, rowH=26, padL=210, padR=16, padT=10, padB=28;
+  const H=padT+padB+rowH*rows.length;
+  const allLo = Math.min(...rows.map(r=>r.lo), base), allHi = Math.max(...rows.map(r=>r.hi), base);
+  const span = allHi-allLo || 1;
+  const plotW = W-padL-padR;
+  const xOf = v => padL + ((v-allLo)/span)*plotW;
+
+  let svg='';
+  svg += `<line x1="${xOf(base)}" y1="${padT}" x2="${xOf(base)}" y2="${H-padB}" stroke="var(--baseline)" stroke-width="1" stroke-dasharray="3,3"/>`;
+  svg += `<text class="axis-text" x="${xOf(base)}" y="${padT-2}" text-anchor="middle">caso base</text>`;
+  rows.forEach((r,i)=>{
+    const cy = padT + rowH*i + rowH/2;
+    svg += `<text class="bar-label" x="${padL-10}" y="${cy+4}" text-anchor="end">${r.label}</text>`;
+    svg += `<rect data-tip="${r.label}: de ${fmtCLP(r.lo)} a ${fmtCLP(r.hi)} (rango ${fmtCLP(r.range)})" class="hit" x="${xOf(r.lo)}" y="${cy-7}" width="${Math.max(xOf(r.hi)-xOf(r.lo),2)}" height="14" rx="4" fill="var(--series-A)" opacity="${i===0?1:0.55}"/>`;
+  });
+  svg += `<text class="axis-text" x="${padL}" y="${H-10}">Δ = VP(B) − VP(A), $</text>`;
+  document.getElementById('tornadoChart').setAttribute('viewBox',`0 0 ${W} ${H}`);
+  document.getElementById('tornadoChart').innerHTML = svg;
+  attachHit('tornadoChart');
+
+  let tbl = `<table class="datatable"><thead><tr><th>Variable</th><th>Δ mínimo</th><th>Δ máximo</th><th>Rango |Δ|</th></tr></thead><tbody>`;
+  rows.forEach(r=> tbl += `<tr><td>${r.label}</td><td>${fmtCLP(r.lo)}</td><td>${fmtCLP(r.hi)}</td><td>${fmtCLP(r.range)}</td></tr>`);
+  tbl += `</tbody></table>`;
+  document.getElementById('tornadoTable').innerHTML = tbl;
+}
+
+/* ============================= MONTECARLO ============================= */
+function triang(a,b,c,u){
+  if(b<=a) return a;
+  const Fc = (c-a)/(b-a);
+  if(u<Fc) return a+Math.sqrt(u*(b-a)*(c-a));
+  return b-Math.sqrt((1-u)*(b-a)*(b-c));
+}
+function runMonteCarlo(){
+  const nIter=1000;
+  const deltas=[]; let probB=0;
+  for(let k=0;k<nIter;k++){
+    const v={};
+    CONFIG.forEach(c=>{ v[c.key]=triang(c.min,c.max,state[c.key],Math.random()); });
+    const d = scenario(v).delta;
+    deltas.push(d);
+    if(d<0) probB++;
+  }
+  deltas.sort((a,b)=>a-b);
+  const mean = deltas.reduce((s,x)=>s+x,0)/nIter;
+  const pctl = p => deltas[Math.floor(p*nIter)];
+  const p10=pctl(0.10), p50=pctl(0.50), p90=pctl(0.90);
+  renderHistogram(deltas, mean);
+  document.getElementById('mcStats').innerHTML = `
+    <div class="tile"><div class="label">Media de Δ</div><div class="value">${fmtCLP(mean)}</div></div>
+    <div class="tile"><div class="label">P10 (optimista)</div><div class="value">${fmtCLP(p10)}</div></div>
+    <div class="tile"><div class="label">P50 (mediana)</div><div class="value">${fmtCLP(p50)}</div></div>
+    <div class="tile"><div class="label">P90 (conservador)</div><div class="value">${fmtCLP(p90)}</div></div>
+    <div class="tile"><div class="label">Prob. de que B sea más económica</div><div class="value">${fmtPct(probB/nIter,0)}</div></div>
+  `;
+  document.getElementById('mcHint').textContent = `Última corrida: 1.000 escenarios sobre el set de variables actual del simulador. Cada clic genera una corrida nueva (los números varían levemente, igual que presionar F9 en Excel).`;
+}
+function renderHistogram(deltas, mean){
+  const W=640,H=220, padL=10,padR=10,padT=10,padB=30;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  const lo=Math.min(...deltas), hi=Math.max(...deltas);
+  const bins=28; const w=(hi-lo)/bins;
+  const counts=new Array(bins).fill(0);
+  deltas.forEach(d=>{ let idx=Math.floor((d-lo)/w); if(idx>=bins) idx=bins-1; if(idx<0) idx=0; counts[idx]++; });
+  const maxC = Math.max(...counts);
+  const xOf = v => padL + ((v-lo)/(hi-lo))*plotW;
+  const barW = plotW/bins;
+
+  let svg='';
+  svg += `<line x1="${xOf(0)}" y1="${padT}" x2="${xOf(0)}" y2="${H-padB}" stroke="var(--baseline)" stroke-width="1" stroke-dasharray="3,3"/>`;
+  counts.forEach((c,i)=>{
+    const x = padL + i*barW;
+    const h = (c/maxC)*plotH;
+    svg += `<rect data-tip="Δ entre ${fmtCLP(lo+i*w)} y ${fmtCLP(lo+(i+1)*w)}: ${c} escenarios" class="hit" x="${x+1}" y="${padT+plotH-h}" width="${Math.max(barW-2,1)}" height="${Math.max(h,1)}" rx="2" fill="var(--series-A)" opacity="0.75"/>`;
+  });
+  svg += `<text class="axis-text" x="${xOf(lo)}" y="${H-10}">${fmtCLP(lo)}</text>`;
+  svg += `<text class="axis-text" x="${xOf(hi)}" y="${H-10}" text-anchor="end">${fmtCLP(hi)}</text>`;
+  svg += `<text class="axis-text" x="${xOf(0)}" y="${padT-2}" text-anchor="middle">0</text>`;
+  document.getElementById('mcChart').innerHTML = svg;
+  attachHit('mcChart');
+}
+
+/* ============================= HIT / TOOLTIP WIRE-UP ============================= */
+function attachHit(svgId){
+  const svg = document.getElementById(svgId);
+  svg.querySelectorAll('.hit').forEach(el=>{
+    el.addEventListener('mousemove', e=> showTip(e, el.getAttribute('data-tip')));
+    el.addEventListener('mouseleave', hideTip);
+  });
+}
+
+/* ============================= CONSIDERACIONES ============================= */
+const CONSIDERACIONES = [
+  'Los rangos de incertidumbre (% mín./máx.) son referenciales, definidos como punto de partida para este modelo; deben validarse con información histórica real (SAP, Consulta de Detenciones) o juicio experto antes de usarse en una decisión real de inversión.',
+  'Las 14 variables del modelo están declaradas como <b>"Sin declarar"</b> en la columna Calidad del dato de la hoja Supuestos. El índice de confianza de los datos, ponderado por cuánto influyen en el resultado, es de 15% ("Insuficiente") según la hoja Validación del Excel.',
+  'La variable más influyente es <b>Fallas/año — Alternativa A</b>: explica un 34% del rango total del análisis de tornado. Es el primer dato que conviene respaldar con evidencia real antes de usar este caso para decidir.',
+  'Los costos se expresan en moneda constante; no se considera inflación ni efecto tributario.',
+  'La penalización por hora de detención se modela como un valor común a ambas alternativas (misma planta); las demás variables se muestrean de forma independiente en el Montecarlo.',
+  'El horizonte de evaluación (15 años), los años de mantenimiento mayor (5 y 10) y el valor residual (0%) están fijos en este simulador, igual que en el Excel original — no son ajustables con los controles de esta página.',
+  'Las alternativas A y B son un modelo ilustrativo para comparar metodológicamente dos opciones de equipo. No corresponden a equipos reales del proyecto Ciclo de Vida Cullen ni constituyen por sí solas un caso de negocio.',
+];
+function renderConsideraciones(){
+  document.getElementById('considList').innerHTML = CONSIDERACIONES.map(c=>`<li>${c}</li>`).join('');
+}
+
+/* ============================= FUENTES TABLE ============================= */
+function renderFuentes(){
+  let html = `<thead><tr><th>Variable</th><th>Unidad</th><th class="num">Valor base</th><th>Rango usado</th><th>Fuente / comentario (Excel)</th><th>Calidad</th></tr></thead><tbody>`;
+  CONFIG.forEach(c=>{
+    html += `<tr>
+      <td>${c.label}</td><td>${c.unit}</td>
+      <td class="num">${fmtByCfg(c,c.base)}</td>
+      <td>${fmtByCfg(c,c.min)} — ${fmtByCfg(c,c.max)}</td>
+      <td>${c.fuente}</td>
+      <td><span class="quality-tag">Sin declarar</span></td>
+    </tr>`;
+  });
+  html += `</tbody>`;
+  document.getElementById('fuentesTable').innerHTML = html;
+}
+
+/* ============================= INIT ============================= */
+function renderAll(){
+  renderTiles();
+  renderBarChart();
+  renderLineChart();
+  renderTornado();
+}
+buildSliders();
+renderAll();
+renderConsideraciones();
+renderFuentes();
+document.getElementById('mcBtn').addEventListener('click', runMonteCarlo);
+</script>
+</body>
+</html>
